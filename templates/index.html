@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversion Tool</title>
+    <style>
+        .ip-part, .rgb-part {
+            width: 50px;
+            display: inline-block;
+        }
+        span {
+            display: inline-block;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Number, IP, and RGB Conversion Tool</h1>
+    <form id="convertForm">
+        <label for="type">Type:</label>
+        <select id="type" name="type">
+            <option value="number">Number</option>
+            <option value="ip">IP Address</option>
+            <option value="rgb">RGB Color</option>
+        </select><br><br>
+        
+        <label for="from">From:</label>
+        <select id="from" name="from">
+            <option value="binary">Binary</option>
+            <option value="decimal">Decimal</option>
+            <option value="hexadecimal">Hexadecimal</option>
+        </select><br><br>
+        
+        <label for="to">To:</label>
+        <select id="to" name="to">
+            <option value="binary">Binary</option>
+            <option value="decimal">Decimal</option>
+            <option value="hexadecimal">Hexadecimal</option>
+        </select><br><br>
+        
+        <label for="input">Input:</label>
+        <div id="inputContainer">
+            <input type="text" id="input" name="input" required>
+        </div><br><br>
+        
+        <button type="submit">Convert</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        function updateInputFields() {
+            const type = document.getElementById('type').value;
+            const container = document.getElementById('inputContainer');
+            container.innerHTML = '';
+            
+            if (type === 'number') {
+                container.innerHTML = '<input type="text" id="input" name="input" required>';
+            } else if (type === 'ip') {
+                container.innerHTML = `
+                    <input type="text" class="ip-part" maxlength="3" required>
+                    <span>.</span>
+                    <input type="text" class="ip-part" maxlength="3" required>
+                    <span>.</span>
+                    <input type="text" class="ip-part" maxlength="3" required>
+                    <span>.</span>
+                    <input type="text" class="ip-part" maxlength="3" required>
+                `;
+            } else if (type === 'rgb') {
+                container.innerHTML = `
+                    <input type="text" class="rgb-part" maxlength="3" required>
+                    <span>,</span>
+                    <input type="text" class="rgb-part" maxlength="3" required>
+                    <span>,</span>
+                    <input type="text" class="rgb-part" maxlength="3" required>
+                `;
+            }
+        }
+        
+        document.getElementById('type').addEventListener('change', updateInputFields);
+        updateInputFields(); // Initialize on load
+        
+        document.getElementById('convertForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const type = document.getElementById('type').value;
+            let input = '';
+            
+            if (type === 'number') {
+                input = document.getElementById('input').value;
+            } else if (type === 'ip') {
+                const parts = document.querySelectorAll('.ip-part');
+                input = Array.from(parts).map(p => p.value).join('.');
+            } else if (type === 'rgb') {
+                const parts = document.querySelectorAll('.rgb-part');
+                input = Array.from(parts).map(p => p.value).join(',');
+            }
+            
+            const data = {
+                type: type,
+                from: document.getElementById('from').value,
+                to: document.getElementById('to').value,
+                input: input
+            };
+            
+            fetch('/convert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').innerText = 'Result: ' + data.result;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerText = 'Error occurred';
+            });
+        });
+    </script>
+</body>
+</html>
