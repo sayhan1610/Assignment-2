@@ -1,3 +1,4 @@
+<!-- Template for the conversion web UI. Provides form controls and client JS -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Conversion Tool</title>
     <style>
+        /* Small styles for input widths and spacing */
         .ip-part, .rgb-part {
             width: 50px;
             display: inline-block;
@@ -17,6 +19,7 @@
 </head>
 <body>
     <h1>Number, IP, and RGB Conversion Tool</h1>
+    <!-- Form that the JS reads and posts to /convert -->
     <form id="convertForm">
         <label for="type">Type:</label>
         <select id="type" name="type">
@@ -41,6 +44,7 @@
         
         <label for="input">Input:</label>
         <div id="inputContainer">
+            <!-- JS will update this container based on selected `type` -->
             <input type="text" id="input" name="input" required>
         </div><br><br>
         
@@ -50,59 +54,82 @@
     <div id="result"></div>
     
     <script>
+        function getMaxLength() {
+            const fromBase = document.getElementById('from').value;
+            if (fromBase === 'binary') {
+                return 8; // 8 bits for binary
+            } else if (fromBase === 'hexadecimal') {
+                return 2; // 2 hex digits (00-FF)
+            } else {
+                return 3; // decimal (0-255)
+            }
+        }
+
         function updateInputFields() {
             const type = document.getElementById('type').value;
             const container = document.getElementById('inputContainer');
+            const maxLength = getMaxLength();
             container.innerHTML = '';
-            
+
             if (type === 'number') {
+                // Single free-text input for simple number conversions
                 container.innerHTML = '<input type="text" id="input" name="input" required>';
             } else if (type === 'ip') {
+                // Four small inputs for IP octets; join with '.' on submit
                 container.innerHTML = `
-                    <input type="text" class="ip-part" maxlength="3" required>
+                    <input type="text" class="ip-part" maxlength="${maxLength}" required>
                     <span>.</span>
-                    <input type="text" class="ip-part" maxlength="3" required>
+                    <input type="text" class="ip-part" maxlength="${maxLength}" required>
                     <span>.</span>
-                    <input type="text" class="ip-part" maxlength="3" required>
+                    <input type="text" class="ip-part" maxlength="${maxLength}" required>
                     <span>.</span>
-                    <input type="text" class="ip-part" maxlength="3" required>
+                    <input type="text" class="ip-part" maxlength="${maxLength}" required>
                 `;
             } else if (type === 'rgb') {
+                // Three small inputs for RGB components; join with ',' on submit
                 container.innerHTML = `
-                    <input type="text" class="rgb-part" maxlength="3" required>
+                    <input type="text" class="rgb-part" maxlength="${maxLength}" required>
                     <span>,</span>
-                    <input type="text" class="rgb-part" maxlength="3" required>
+                    <input type="text" class="rgb-part" maxlength="${maxLength}" required>
                     <span>,</span>
-                    <input type="text" class="rgb-part" maxlength="3" required>
+                    <input type="text" class="rgb-part" maxlength="${maxLength}" required>
                 `;
             }
         }
-        
+
+        // Re-render inputs when the conversion type or from base changes
         document.getElementById('type').addEventListener('change', updateInputFields);
-        updateInputFields(); // Initialize on load
-        
+        document.getElementById('from').addEventListener('change', updateInputFields);
+        updateInputFields(); // Initialize controls on page load
+
+        // Submit handler: gather inputs, call API, render result
         document.getElementById('convertForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const type = document.getElementById('type').value;
             let input = '';
-            
+
             if (type === 'number') {
+                // Single value (string) — converted server-side according to `from`
                 input = document.getElementById('input').value;
             } else if (type === 'ip') {
+                // Collect four octets and produce dotted-string; e.g. '192.168.0.1'
                 const parts = document.querySelectorAll('.ip-part');
                 input = Array.from(parts).map(p => p.value).join('.');
             } else if (type === 'rgb') {
+                // Collect three components and produce comma-separated string
                 const parts = document.querySelectorAll('.rgb-part');
                 input = Array.from(parts).map(p => p.value).join(',');
             }
-            
+
+            // Build request payload expected by the Flask backend
             const data = {
                 type: type,
                 from: document.getElementById('from').value,
                 to: document.getElementById('to').value,
                 input: input
             };
-            
+
+            // Send conversion request and display the response
             fetch('/convert', {
                 method: 'POST',
                 headers: {
@@ -112,9 +139,11 @@
             })
             .then(response => response.json())
             .then(data => {
+                // Backend returns result as text; render it directly
                 document.getElementById('result').innerText = 'Result: ' + data.result;
             })
             .catch(error => {
+                // On network or parse errors, log and notify user
                 console.error('Error:', error);
                 document.getElementById('result').innerText = 'Error occurred';
             });
